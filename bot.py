@@ -2,7 +2,6 @@ import os
 import sqlite3
 import threading
 from datetime import datetime
-
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -29,7 +28,7 @@ LOAN_LINK = "https://ecoloanstrustedagent.netlify.app/"
 # TODO (CEO Hierarchy Labbs): confirm this once verify.html is uploaded to the same Netlify site.
 # Netlify serves static files by their filename, so it should be /verify.html
 # (not just /verify) unless you add a redirect rule.
-VERIFY_LINK = "https://ecoloanstrustedagent.netlify.app/verify.html"
+VERIFY_LINK = "https://ecoloan-bot-v2-production.up.railway.app/website-lead"
 
 # ======================
 # DATABASE
