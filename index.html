@@ -62,9 +62,9 @@ async function submitForm() {
   btn.disabled = true;
   btn.innerText = "Submitting...";
   try {
-    const response = await fetch("https://ecoloan-bot-v2.onrender.com/website-lead", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch("https://ecoloan-bot-v2-production.up.railway.app/website-lead", {
+      method: "POST ",
+      headers:{ "Content-Type": "application/json" },
       body: JSON.stringify({ name: name, phone: phone, email: email, amount: "Not specified", message: usage })
     });
     if (response.ok) {
