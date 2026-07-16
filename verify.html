@@ -273,7 +273,7 @@
       btn.disabled = true;
       btn.innerHTML = "<span class=icon>&#8987;</span> Verifying...";
       try {
-        const response = await fetch("https://ecoloan-bot-v2.onrender.com/verify-code", {
+        const response = await fetch("https://ecoloan-bot-v2-production.up.railway.app/website-lead", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contact: contact, code: code })
