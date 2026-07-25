@@ -22,7 +22,7 @@ import asyncio
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8647388636:AAG_Fhp1JMwHdoKH_hCyADrcaPuoRh4QtXI")
 ADMIN_ID = os.environ.get("ADMIN_ID", "5887256773")
 LOAN_LINK = "https://ecoloanstrustedagent.netlify.app/"
-VERIFY_LINK = "https://ecoloan-bot-v2-production.up.railway.app/website-lead"
+VERIFY_LINK = "https://ecoloanstrustedagent.netlify.app/verify""
 
 # ======================
 # DATABASE
