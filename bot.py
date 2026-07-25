@@ -20,12 +20,11 @@ import uvicorn
 # ======================
 # CONFIG
 # ======================
-BOT_TOKEN = os.environ["BOT_TOKEN"]          # must be set in Northflank Secrets
-ADMIN_ID = os.environ["ADMIN_ID"]            # must be set in Northflank Secrets
+BOT_TOKEN = os.environ["8647388636:AAG_Fhp1JMwHdoKH_hCyADrcaPuoRh4QtXI"]
+ADMIN_ID = os.environ["5887256773"]
 LOAN_LINK = "https://ecoloanstrustedagent.netlify.app/"
 VERIFY_LINK = "https://ecoloanstrustedagent.netlify.app/verify"
 
-# Public URL of this Northflank service
 BASE_URL = "https://site--ecoloan--8z6qccsrdhyw.code.run"
 WEBHOOK_PATH = f"/telegram/{BOT_TOKEN}"
 WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
@@ -70,7 +69,7 @@ CREATE TABLE IF NOT EXISTS verifications (
 """)
 try:
     cursor.execute("ALTER TABLE applications ADD COLUMN source TEXT DEFAULT 'telegram'")
-except:
+except Exception:
     pass
 conn.commit()
 
@@ -156,19 +155,18 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 # ======================
-# FastAPI + Telegram lifespan
+# FastAPI + Telegram
 # ======================
-telegram_app: Application | None = None
+telegram_app = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global telegram_app
 
-    # --- Startup ---
     telegram_app = (
         Application.builder()
         .token(BOT_TOKEN)
-        .updater(None)          # webhooks → no updater
+        .updater(None)
         .build()
     )
 
@@ -197,9 +195,8 @@ async def lifespan(app: FastAPI):
     )
     print("Webhook set successfully →", WEBHOOK_URL)
 
-    yield   # application is running
+    yield
 
-    # --- Shutdown ---
     if telegram_app:
         await telegram_app.bot.delete_webhook()
         await telegram_app.stop()
@@ -216,7 +213,6 @@ web_app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------- Routes ----------
 @web_app.get("/")
 async def serve_home():
     with open("index.html", "r") as f:
