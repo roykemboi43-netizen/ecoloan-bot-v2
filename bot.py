@@ -1,66 +1,120 @@
 import os
-import asyncio
-from fastapi import FastAPI, Request, Response
+import sqlite3
+from datetime import datetime
+from contextlib import asynccontextmanager
+
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ConversationHandler, filters, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ConversationHandler,
+    ContextTypes,
+    filters,
+)
+from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]          # no fallback!
-ADMIN_ID = os.environ["ADMIN_ID"]
-WEBHOOK_PATH = f"/telegram/{BOT_TOKEN}"     # secret path
-WEBHOOK_URL = f"https://site--ecoloan--8z6qccsrdhyw.code.run{WEBHOOK_PATH}"
+# ======================
+# CONFIG
+# ======================
+BOT_TOKEN = os.environ["BOT_TOKEN"]          # must be set in Northflank Secrets
+ADMIN_ID = os.environ["ADMIN_ID"]            # must be set in Northflank Secrets
+LOAN_LINK = "https://ecoloanstrustedagent.netlify.app/"
+VERIFY_LINK = "https://ecoloanstrustedagent.netlify.app/verify"
 
-# ... your database setup stays the same ...
+# Public URL of this Northflank service
+BASE_URL = "https://site--ecoloan--8z6qccsrdhyw.code.run"
+WEBHOOK_PATH = f"/telegram/{BOT_TOKEN}"
+WEBHOOK_URL = f"{BASE_URL}{WEBHOOK_PATH}"
 
-web_app = FastAPI()
-telegram_app: Application = None
+# ======================
+# DATABASE
+# ======================
+conn = sqlite3.connect("loan_bot.db", check_same_thread=False)
+cursor = conn.cursor()
 
-# ---------- Telegram handlers (same as before) ----------
-# (keep all your start, loan_start, get_name, etc. functions)
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    name TEXT,
+    email TEXT,
+    phone TEXT,
+    occupation TEXT,
+    status TEXT,
+    loan_usage TEXT,
+    source TEXT DEFAULT 'telegram'
+)
+""")
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS website_leads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    email TEXT,
+    phone TEXT,
+    amount TEXT,
+    message TEXT,
+    timestamp TEXT
+)
+""")
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS verifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contact TEXT,
+    code TEXT,
+    timestamp TEXT
+)
+""")
+try:
+    cursor.execute("ALTER TABLE applications ADD COLUMN source TEXT DEFAULT 'telegram'")
+except:
+    pass
+conn.commit()
 
-async def run_bot():
-    global telegram_app
-    telegram_app = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .updater(None)          # we don't need the updater for webhooks
-        .build()
+# ======================
+# TELEGRAM HANDLERS
+# ======================
+NAME, EMAIL, PHONE, OCCUPATION, STATUS, LOAN_USAGE = range(6)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Welcome to EcoLoan Assistant!\n\nUse /loan to start your application."
     )
 
-    # register handlers exactly as you already do
-    loan_handler = ConversationHandler(...)
-    telegram_app.add_handler(CommandHandler("start", start))
-    telegram_app.add_handler(loan_handler)
+async def loan_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Enter your Full Name:")
+    return NAME
 
-    await telegram_app.initialize()
-    await telegram_app.start()
-    await telegram_app.bot.set_webhook(
-        url=WEBHOOK_URL,
-        drop_pending_updates=True,
-        allowed_updates=["message", "callback_query"]
+async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["name"] = update.message.text
+    await update.message.reply_text("Enter your Email:")
+    return EMAIL
+
+async def get_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["email"] = update.message.text
+    await update.message.reply_text("Enter your Phone Number:")
+    return PHONE
+
+async def get_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["phone"] = update.message.text
+    await update.message.reply_text("Enter your Occupation:")
+    return OCCUPATION
+
+async def get_occupation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["occupation"] = update.message.text
+    await update.message.reply_text(
+        "Status? (Employed / Self Employed / Student / Unemployed)"
     )
-    print("Webhook set successfully")
+    return STATUS
 
-@web_app.on_event("startup")
-async def startup():
-    await run_bot()
+async def get_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["status"] = update.message.text
+    await update.message.reply_text("What will you use the loan for?")
+    return LOAN_USAGE
 
-@web_app.on_event("shutdown")
-async def shutdown():
-    if telegram_app:
-        await telegram_app.bot.delete_webhook()
-        await telegram_app.stop()
-        await telegram_app.shutdown()
-
-@web_app.post(WEBHOOK_PATH)
-async def telegram_webhook(request: Request):
-    data = await request.json()
-    update = Update.de_json(data, telegram_app.bot)
-    await telegram_app.process_update(update)
-    return Response(status_code=200)
-
-# keep your / , /verify , /website-lead , /verify-code routes
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(web_app, host="0.0.0.0", port=port)
+async def get_loan_usage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["loan_usage"] = update.message.text
+    user_id = str(update.effective_user
