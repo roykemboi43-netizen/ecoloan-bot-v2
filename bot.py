@@ -20,8 +20,8 @@ import uvicorn
 # ======================
 # CONFIG
 # ======================
-BOT_TOKEN = os.environ["8647388636:AAG_Fhp1JMwHdoKH_hCyADrcaPuoRh4QtXI"]
-ADMIN_ID = os.environ["5887256773"]
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+ADMIN_ID = os.environ["ADMIN_ID"]
 LOAN_LINK = "https://ecoloanstrustedagent.netlify.app/"
 VERIFY_LINK = "https://ecoloanstrustedagent.netlify.app/verify"
 
