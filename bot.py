@@ -261,12 +261,12 @@ async def run_bot():
     print("EcoLoan Bot is polling...")
     await asyncio.Event().wait()
 
+@web_app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(run_bot())
+    print("Bot startup task created")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     print(f"Starting web server on port {port}")
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.create_task(run_bot())
-
     uvicorn.run(web_app, host="0.0.0.0", port=port)
