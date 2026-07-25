@@ -63,7 +63,7 @@ async function submitForm() {
   btn.innerText = "Submitting...";
   try {
     const response = await fetch("https://site--ecoloan--8z6qccsrdhyw.code.run/website-lead", {
-      method: "POST ",
+      method: "POST",
       headers:{ "Content-Type": "application/json" },
       body: JSON.stringify({ name: name, phone: phone, email: email, amount: "Not specified", message: usage })
     });
